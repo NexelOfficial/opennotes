@@ -91,7 +91,7 @@ auto NIFCollection::read_entries(COLLECTIONPOSITION *pos, DWORD return_count,
 
       // Advance to the next item
       summary += length - sizeof(USHORT);
-      entries[i].data.push_back({type, item_buffer});
+      entries[i].columns.push_back({type, item_buffer});
     }
   }
 

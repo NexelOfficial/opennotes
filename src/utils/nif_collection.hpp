@@ -5,14 +5,14 @@
 #include <string>
 #include <vector>
 
-struct NIFData {
+struct NIFColumn {
   USHORT type;
   std::vector<USHORT> buffer;
 };
 
 struct NIFEntry {
   NOTEID id;
-  std::vector<NIFData> data{};
+  std::vector<NIFColumn> columns{};
 };
 
 class NIFCollection {

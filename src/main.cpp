@@ -7,10 +7,10 @@
 #include <windows.h>
 #include <winerror.h>
 
+#include <format>
 #include <iostream>
 #include <string>
 #include <vector>
-#include <array>
 
 #include "log.hpp"
 #include "utils/database.hpp"
@@ -19,6 +19,7 @@
 #include "utils/nif_collection.hpp"
 #include "utils/note.hpp"
 #include "utils/os.hpp"
+#include "utils/parser.hpp"
 
 STATUS LNCALLBACK xmlWriter(const char *pBuffer, DWORD_PTR dwBytesWritten, void *pAction) {
   auto *buffer = static_cast<std::string *>(pAction);
@@ -57,29 +58,20 @@ auto getDocsInView(DHANDLE db_handle, std::string view_name) -> std::vector<NOTE
   }
 
   for (NIFEntry entry : entries) {
-    NIFData data = entry.data[fmin(1, entry.data.size() - 1)];
+    NIFColumn col = entry.columns[0];
 
     // Read the item
-    if (data.type == TYPE_TEXT && data.buffer.size() > 0) {
-      auto raw_text = reinterpret_cast<const char *>(data.buffer.data());
-      std::string item_text(raw_text, data.buffer.size());
-      std::cout << item_text << "\n";
-    } else if (data.type == TYPE_TIME) {
-      std::array<char, 100> raw_text{};
-      WORD raw_text_len = NULL;
-      TIMEDATE date = *reinterpret_cast<TIMEDATE *>(data.buffer.data());
-      ConvertTIMEDATEToText(nullptr, nullptr, &date, raw_text.data(), MAXALPHATIMEDATE,
-                            &raw_text_len);
-
-      std::string item_text(raw_text.data(), raw_text_len);
-      // std::cout << item_text << "\n";
-    } else if (data.type == TYPE_NUMBER) {
-      NUMBER raw_number = *(NUMBER*)data.buffer.data();
-      std::cout << raw_number << "\n";
-    } else {
-      std::cout << data.buffer.size() << " with type " << data.type << "\n";
+    std::string item_text = "";
+    if (col.type == TYPE_TEXT && col.buffer.size() > 0) {
+      item_text = Parser::parse_text(col.buffer);
+    } else if (col.type == TYPE_TIME) {
+      item_text = Parser::parse_timedate(col.buffer);
+    } else if (col.type == TYPE_NUMBER) {
+      double item_num = Parser::parse_number(col.buffer);
+      item_text = std::format("Number: {}", item_num);
     }
 
+    std::cout << item_text << "\n";
     note_ids.push_back(entry.id);
   }
 
