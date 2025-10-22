@@ -1,15 +1,14 @@
+#include <domino/global.h>
+#include <domino/nif.h>
+#include <domino/nsferr.h>
+#include <domino/nsfsearc.h>
+#include <domino/xml.h>
 #include <windows.h>
 #include <winerror.h>
 
 #include <iostream>
 #include <string>
 #include <vector>
-
-#include <domino/global.h>
-#include <domino/nif.h>
-#include <domino/nsferr.h>
-#include <domino/nsfsearc.h>
-#include <domino/xml.h>
 
 #include "log.hpp"
 #include "utils/database.hpp"
@@ -42,17 +41,14 @@ auto getDocsInView(DHANDLE db_handle, std::string view_name,
 
   // Loop through the entries
   while (true) {
-    DWORD found = NULL;
-    DHANDLE entries_buf = NULLHANDLE;
+    NIFEntries entries = collection.read_entries(&coll_pos);
 
-    STATUS err = NIFReadEntries(collection.get_handle(), &coll_pos, NAVIGATE_NEXT, 1, NAVIGATE_NEXT,
-                                100, READ_MASK_NOTEID | READ_MASK_SUMMARYVALUES, &entries_buf,
-                                nullptr, nullptr, &found, nullptr);
+    if (entries.length == 0) {
+      break;
+    }
 
-    if (err != NOERROR || found == 0) break;
-
-    auto entries_obj = new OSObject(entries_buf);
-    for (DWORD i = 0; i < found; ++i) {
+    auto entries_obj = new OSObject(entries.handle);
+    for (DWORD i = 0; i < entries.length; ++i) {
       // Read noteid
       auto note_id = entries_obj->get<NOTEID>();
       entries_obj->inc(sizeof(NOTEID));
@@ -60,14 +56,14 @@ auto getDocsInView(DHANDLE db_handle, std::string view_name,
       // Skip item table
       auto item_table = entries_obj->get<ITEM_VALUE_TABLE>();
       entries_obj->inc(item_table.Length);
-
+      
       note_ids.push_back(note_id);
     }
 
     entries_obj->unlock_and_free();
 
     // Move the collection position forward
-    coll_pos.Tumbler[0] += found;
+    coll_pos.Tumbler[0] += entries.length;
   }
 
   return NOERROR;
@@ -98,7 +94,6 @@ auto main(int argc, char *argv[]) -> int {
   }
 
   // Export the notes
-  std::cout << "HEHH\n";
   Formula formula = Formula(std::string(argv[2]));
 
   for (auto note_id : note_ids) {

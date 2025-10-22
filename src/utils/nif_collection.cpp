@@ -27,3 +27,18 @@ NIFCollection::~NIFCollection() {
     Log::error(err, "NIFCloseCollection error");
   }
 }
+
+auto NIFCollection::read_entries(COLLECTIONPOSITION* pos, DWORD read_mask,
+                                 DWORD return_count) const -> NIFEntries {
+  DHANDLE entries_handle = NULLHANDLE;
+  DWORD return_length = NULL;
+
+  STATUS err =
+      NIFReadEntries(this->handle, pos, NAVIGATE_NEXT, 1, NAVIGATE_NEXT, return_count, read_mask,
+                     &entries_handle, nullptr, nullptr, &return_length, nullptr);
+  if (err != NOERROR) {
+    throw NotesException(err, "NIFReadEntries error");
+  }
+
+  return {return_length, entries_handle};
+}
