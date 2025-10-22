@@ -7,7 +7,7 @@
 #include "../log.hpp"
 
 Note::Note(DHANDLE db_handle, NOTEID note_id) {
-  STATUS err = NSFNoteOpenExt(db_handle, note_id, 0, &this->handle);
+  STATUS err = NSFNoteOpenExt(db_handle, note_id, OPEN_NOOBJECTS, &this->handle);
   if (err != NOERROR) {
     throw NotesException(err, "NSFNoteOpenExt error");
   }

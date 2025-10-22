@@ -124,6 +124,12 @@ auto main(int argc, char *argv[]) -> int {
       return 0;
     }
 
+    if (note_ids.size() > 20) {
+      std::cout << std::format(
+          "Warning: You're evaluating Formula over a large amount of Note's ({}). Processing can "
+          "take significantly longer.", note_ids.size());
+    }
+
     for (auto note_id : note_ids) {
       try {
         Note note = Note(db.get_handle(), note_id);
