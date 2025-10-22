@@ -38,7 +38,6 @@ auto getDocsInView(DHANDLE db_handle, std::string view_name) -> std::vector<NOTE
   std::vector<NIFEntry> entries{};
 
   try {
-    std::cout << view_name << "\n";
     NIFCollection collection = NIFCollection(db_handle, view_name);
 
     // Start at the beginning of the view
