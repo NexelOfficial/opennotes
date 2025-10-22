@@ -1,0 +1,16 @@
+---
+Checks: >
+  clang-diagnostic-*, 
+  clang-analyzer-*,
+  modernize-*,
+  cppcoreguidelines-*,
+  -cppcoreguidelines-pro-type-reinterpret-cast,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-owning-memory,
+  -clang-diagnostic-fortify-source
+HeaderFilterRegex: "src/.*"
+WarningsAsErrors: true
+---
+

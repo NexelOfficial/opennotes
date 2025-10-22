@@ -1,0 +1,4 @@
+-IC:vcpkg_installed/x86-windows/include
+-IC:libs/include
+-DW32
+-std=c++20
