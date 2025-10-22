@@ -3,10 +3,16 @@
 #include <domino/nif.h>
 
 #include <string>
+#include <vector>
 
-struct NIFEntries {
-  DWORD length;
-  DHANDLE handle;
+struct NIFData {
+  USHORT type;
+  std::vector<USHORT> buffer;
+};
+
+struct NIFEntry {
+  NOTEID id;
+  std::vector<NIFData> data{};
 };
 
 class NIFCollection {
@@ -17,9 +23,9 @@ class NIFCollection {
   [[nodiscard]] auto is_valid() const -> bool { return this->handle != NULLHANDLE; }
   [[nodiscard]] auto get_handle() const -> HCOLLECTION { return this->handle; }
 
-  [[nodiscard]] auto read_entries(COLLECTIONPOSITION* pos,
-                                  DWORD read_mask = READ_MASK_NOTEID | READ_MASK_SUMMARYVALUES,
-                                  DWORD return_count = 10) const -> NIFEntries;
+  [[nodiscard]] auto read_entries(
+      COLLECTIONPOSITION* pos, DWORD return_count = 0xFFFFFFFF,
+      DWORD read_mask = READ_MASK_NOTEID | READ_MASK_SUMMARYVALUES) const -> std::vector<NIFEntry>;
 
  private:
   HCOLLECTION handle = NULLHANDLE;

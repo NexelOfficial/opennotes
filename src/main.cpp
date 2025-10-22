@@ -3,12 +3,14 @@
 #include <domino/nsferr.h>
 #include <domino/nsfsearc.h>
 #include <domino/xml.h>
+#include <minwindef.h>
 #include <windows.h>
 #include <winerror.h>
 
 #include <iostream>
 #include <string>
 #include <vector>
+#include <array>
 
 #include "log.hpp"
 #include "utils/database.hpp"
@@ -30,43 +32,58 @@ STATUS LNCALLBACK collectDesignNotes(void *ctxVoid, SEARCH_MATCH *match, ITEM_TA
   return NOERROR;
 };
 
-auto getDocsInView(DHANDLE db_handle, std::string view_name,
-                   std::vector<NOTEID> &note_ids) -> STATUS {
-  NIFCollection collection = NIFCollection(db_handle, view_name);
+auto getDocsInView(DHANDLE db_handle, std::string view_name) -> std::vector<NOTEID> {
+  std::vector<NOTEID> note_ids{};
+  std::vector<NIFEntry> entries{};
 
-  // Start at the beginning of the view
-  COLLECTIONPOSITION coll_pos;
-  coll_pos.Level = 0;
-  coll_pos.Tumbler[0] = 0;
+  try {
+    std::cout << view_name << "\n";
+    NIFCollection collection = NIFCollection(db_handle, view_name);
 
-  // Loop through the entries
-  while (true) {
-    NIFEntries entries = collection.read_entries(&coll_pos);
+    // Start at the beginning of the view
+    COLLECTIONPOSITION coll_pos;
+    coll_pos.Level = 0;
+    coll_pos.Tumbler[0] = 0;
 
-    if (entries.length == 0) {
-      break;
-    }
-
-    auto entries_obj = new OSObject(entries.handle);
-    for (DWORD i = 0; i < entries.length; ++i) {
-      // Read noteid
-      auto note_id = entries_obj->get<NOTEID>();
-      entries_obj->inc(sizeof(NOTEID));
-
-      // Skip item table
-      auto item_table = entries_obj->get<ITEM_VALUE_TABLE>();
-      entries_obj->inc(item_table.Length);
-      
-      note_ids.push_back(note_id);
-    }
-
-    entries_obj->unlock_and_free();
-
-    // Move the collection position forward
-    coll_pos.Tumbler[0] += entries.length;
+    // Read the entries at the current postion
+    entries = collection.read_entries(&coll_pos);
+  } catch (NotesException ex) {
+    Log::error(ex.what());
   }
 
-  return NOERROR;
+  // Verify we have results
+  if (entries.size() == 0) {
+    return note_ids;
+  }
+
+  for (NIFEntry entry : entries) {
+    NIFData data = entry.data[fmin(1, entry.data.size() - 1)];
+
+    // Read the item
+    if (data.type == TYPE_TEXT && data.buffer.size() > 0) {
+      auto raw_text = reinterpret_cast<const char *>(data.buffer.data());
+      std::string item_text(raw_text, data.buffer.size());
+      std::cout << item_text << "\n";
+    } else if (data.type == TYPE_TIME) {
+      std::array<char, 100> raw_text{};
+      WORD raw_text_len = NULL;
+      TIMEDATE date = *reinterpret_cast<TIMEDATE *>(data.buffer.data());
+      ConvertTIMEDATEToText(nullptr, nullptr, &date, raw_text.data(), MAXALPHATIMEDATE,
+                            &raw_text_len);
+
+      std::string item_text(raw_text.data(), raw_text_len);
+      // std::cout << item_text << "\n";
+    } else if (data.type == TYPE_NUMBER) {
+      NUMBER raw_number = *(NUMBER*)data.buffer.data();
+      std::cout << raw_number << "\n";
+    } else {
+      std::cout << data.buffer.size() << " with type " << data.type << "\n";
+    }
+
+    note_ids.push_back(entry.id);
+  }
+
+  return note_ids;
 }
 
 auto main(int argc, char *argv[]) -> int {
@@ -80,11 +97,7 @@ auto main(int argc, char *argv[]) -> int {
   Database db = Database("Aspew-6/Asperience", "nathanscoolefreestyle/fs3_site.nsf");
 
   // Get design elements
-  std::vector<NOTEID> note_ids{};
-  err = getDocsInView(db.get_handle(), argv[1], note_ids);
-  if (err) {
-    return err;
-  }
+  std::vector<NOTEID> note_ids = getDocsInView(db.get_handle(), argv[1]);
 
   // Create exporter
   DXLEXPORTHANDLE dxl_handle = NULLHANDLE;
@@ -94,27 +107,17 @@ auto main(int argc, char *argv[]) -> int {
   }
 
   // Export the notes
-  Formula formula = Formula(std::string(argv[2]));
+  // Formula formula = Formula(std::string(argv[2]));
 
-  for (auto note_id : note_ids) {
-    try {
-      Note note = Note(db.get_handle(), note_id);
-      std::string output = formula.evaluate(note.get_handle());
-      std::cout << "- " << output << "\n";
-    } catch (const NotesException &ex) {
-      if (ex.get_code() != ERR_INVALID_NOTE) Log::error(ex.what());
-    }
-
-    // std::string outputXml = "";
-    // err = DXLExportNote(dxl_handle, reinterpret_cast<XML_WRITE_FUNCTION>(xmlWriter), note_handle,
-    //                     (void *)&outputXml);
-    // if (err) {
-    //   return logError(err, "DXLExportNote error");
-    // }
-
-    // // Parse to XML
-    // Xml::saveDominoNote(outputXml);
-  }
+  // for (auto note_id : note_ids) {
+  //   try {
+  //     Note note = Note(db.get_handle(), note_id);
+  //     std::string output = formula.evaluate(note.get_handle());
+  //     std::cout << "- " << output << "\n";
+  //   } catch (const NotesException &ex) {
+  //     if (ex.get_code() != ERR_INVALID_NOTE) Log::error(ex.what());
+  //   }
+  // }
 
   DXLDeleteExporter(dxl_handle);
   return 0;
