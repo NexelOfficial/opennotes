@@ -4,8 +4,8 @@
 
 #include <vector>
 
-#include "../utils/log.hpp"
 #include "../utils/error.hpp"
+#include "../utils/log.hpp"
 #include "os.hpp"
 
 View::View(DHANDLE db_handle, std::string view_name) {
@@ -34,7 +34,7 @@ View::~View() {
 }
 
 auto View::read_entries(COLLECTIONPOSITION *pos, DWORD return_count,
-                                 DWORD read_mask) const -> std::vector<NIFEntry> {
+                        DWORD read_mask) const -> std::vector<NIFEntry> {
   DHANDLE entries_handle = NULLHANDLE;
   DWORD entries_length = NULL;
 
@@ -85,12 +85,12 @@ auto View::read_entries(COLLECTIONPOSITION *pos, DWORD return_count,
       summary += sizeof(USHORT);
 
       // Get the item data
-      std::vector<USHORT> item_buffer{};
-      item_buffer.resize(length - sizeof(USHORT));
-      memcpy(item_buffer.data(), summary, length - sizeof(USHORT));
+      USHORT vec_len = length - sizeof(USHORT);
+      std::vector<USHORT> item_buffer(vec_len);
+      memcpy(item_buffer.data(), summary, vec_len);
 
       // Advance to the next item
-      summary += length - sizeof(USHORT);
+      summary += vec_len;
       entries[i].columns.push_back({type, item_buffer});
     }
   }

@@ -2,7 +2,10 @@
 
 #include <domino/nsfsearc.h>
 
+#include <vector>
+
 #include "../utils/error.hpp"
+#include "../utils/parser.hpp"
 
 Formula::Formula(std::string formula_str) {
   WORD t = NULL;
@@ -66,7 +69,9 @@ auto Formula::evaluate(NOTEHANDLE note_handle) -> std::string {
 
     // Read (if text list)
     if (data_type == TYPE_TEXT_LIST) {
-      return readTextList(result_obj, result_len);
+      std::vector<USHORT> item_buffer(result_len);
+      memcpy(item_buffer.data(), result_obj->get_raw<BYTE*>(), result_len);
+      return Parser::parse_text_list(item_buffer);
     }
   }
 

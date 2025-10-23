@@ -2,20 +2,21 @@
 
 #include <exception>
 #include <format>
-#include <map>
+#include <iostream>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 class Args {
  public:
-  [[nodiscard]] auto static get_usage(const std::string& command,
-                                      const std::vector<std::string>& args) -> std::string {
+  void static log_usage(const std::string& command, const std::vector<std::string>& args) {
     std::string args_str = "";
-    for (std::string arg : args) {
-      args_str += std::format("--{} <{}> ", arg, arg);
+    for (int i = 0; i < args.size(); i++) {
+      std::string arg = args[i];
+      args_str += std::format("[--{} <value>] ", arg);
     }
 
-    return std::format("onotes {} {}", command, args_str);
+    std::cout << std::format("Usage: onotes {} {}", command, args_str) << "\n";
   }
 
   Args(std::vector<char*> raw_args);
@@ -47,5 +48,5 @@ class Args {
   }
 
  private:
-  std::map<std::string, std::string> arguments = {};
+  std::unordered_map<std::string, std::string> arguments = {};
 };

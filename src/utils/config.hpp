@@ -24,7 +24,7 @@ class Config {
     this->active_db.file = file;
   }
 
-  void save();
+  void save() const;
 
  private:
   fs::path app_folder = fs::path{};

@@ -3,7 +3,6 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <nlohmann/json.hpp>
 
 Config::Config() {
@@ -45,7 +44,7 @@ Config::Config() {
   file.close();
 }
 
-void Config::save() {
+void Config::save() const {
   nlohmann::json j;
 
   j["active_db"]["port"] = this->active_db.port;
