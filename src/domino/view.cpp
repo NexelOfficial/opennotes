@@ -57,19 +57,16 @@ auto View::read_entries(COLLECTIONPOSITION *pos, DWORD return_count,
   for (DWORD i = 0; i < entries_length; ++i) {
     // Read noteid
     auto note_id = entries_obj->get<NOTEID>();
-    entries_obj->inc(sizeof(NOTEID));
     entries.push_back({note_id, {}});
 
     // Read item table
-    auto summary = entries_obj->get_raw<BYTE *>() + sizeof(ITEM_VALUE_TABLE);
+    auto item_base = entries_obj->get_raw<BYTE *>();
     auto item_table = entries_obj->get<ITEM_VALUE_TABLE>();
-    entries_obj->inc(item_table.Length);
 
     // Get the length of each item in the table
     std::vector<USHORT> item_lengths{};
     for (USHORT j = 0; j < item_table.Items; j++) {
-      item_lengths.push_back(*(USHORT *)summary);
-      summary += sizeof(USHORT);
+      item_lengths.push_back(entries_obj->get<USHORT>());
     }
 
     // Get the items in the table
@@ -81,18 +78,16 @@ auto View::read_entries(COLLECTIONPOSITION *pos, DWORD return_count,
       }
 
       // Get the item type
-      USHORT type = *(USHORT *)summary;
-      summary += sizeof(USHORT);
+      auto type = entries_obj->get<USHORT>();
 
       // Get the item data
       USHORT vec_len = length - sizeof(USHORT);
-      std::vector<USHORT> item_buffer(vec_len);
-      memcpy(item_buffer.data(), summary, vec_len);
+      auto item_buffer = entries_obj->get<USHORT>(vec_len);
 
-      // Advance to the next item
-      summary += vec_len;
       entries[i].columns.push_back({type, item_buffer});
     }
+
+    entries_obj->mov(item_base + item_table.Length);
   }
 
   return entries;

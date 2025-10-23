@@ -28,8 +28,6 @@ Formula::Formula(std::string formula_str) {
 
   // Get the amount of entries
   auto entries = obj->get<WORD>();
-  obj->inc(sizeof(WORD));
-
   auto* lengths = obj->get_raw<const WORD*>();
 
   // Concatenate all entries
@@ -65,12 +63,10 @@ auto Formula::evaluate(NOTEHANDLE note_handle) -> std::string {
   if (result != NULLHANDLE) {
     auto result_obj = new OSObject(result);
     auto data_type = result_obj->get<WORD>();
-    result_obj->inc(sizeof(WORD));
 
     // Read (if text list)
     if (data_type == TYPE_TEXT_LIST) {
-      std::vector<USHORT> item_buffer(result_len);
-      memcpy(item_buffer.data(), result_obj->get_raw<BYTE*>(), result_len);
+      auto item_buffer = result_obj->get<USHORT>(result_len);
       return Parser::parse_text_list(item_buffer);
     }
   }

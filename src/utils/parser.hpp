@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include "../domino/os.hpp"
+
 class Parser {
  public:
   auto static parse_timedate(std::vector<USHORT>& buffer) -> std::string {
@@ -37,17 +39,17 @@ class Parser {
     }
 
     // Get the amount of entries
-    auto* data = reinterpret_cast<const BYTE*>(buffer.data());
-    WORD entries = *reinterpret_cast<const WORD*>(data);
-    data += sizeof(WORD);
-
-    auto* lengths = reinterpret_cast<const WORD*>(data);
+    OSObject obj = OSObject(buffer);
+    WORD entries = obj.get<WORD>();
+    auto* lengths = obj.get_raw<const WORD*>();
 
     // Concatenate all entries
     std::string output = "";
+    obj.mov((BYTE*)(entries + lengths));
+    auto content = obj.get_raw<const char*>();
     for (WORD i = 0; i < entries; i++) {
-      auto* content = reinterpret_cast<const char*>(lengths + entries);
       output += std::string(content, lengths[i]) + ",";
+      content += lengths[i];
     }
 
     return output.empty() ? "" : output.substr(0, output.size() - 1);
