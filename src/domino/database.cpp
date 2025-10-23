@@ -6,8 +6,8 @@
 #include <array>
 #include <string>
 
-#include "../log.hpp"
-#include "error.hpp"
+#include "../utils/log.hpp"
+#include "../utils/error.hpp"
 
 Database::Database(std::string port, std::string server, std::string file) {
   std::array<char, MAXWORD> db_path{};

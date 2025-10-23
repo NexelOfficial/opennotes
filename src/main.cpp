@@ -13,14 +13,14 @@
 #include <string>
 #include <vector>
 
-#include "args.hpp"
-#include "log.hpp"
-#include "utils/database.hpp"
+#include "utils/args.hpp"
+#include "utils/log.hpp"
 #include "utils/error.hpp"
-#include "utils/formula.hpp"
-#include "utils/nif_collection.hpp"
-#include "utils/note.hpp"
 #include "utils/parser.hpp"
+#include "domino/database.hpp"
+#include "domino/formula.hpp"
+#include "domino/note.hpp"
+#include "domino/view.hpp"
 
 Args *args = nullptr;
 
@@ -41,7 +41,7 @@ auto getDocsInView(DHANDLE db_handle, std::string view_name) -> std::vector<NOTE
   std::vector<NIFEntry> entries{};
 
   try {
-    NIFCollection collection = NIFCollection(db_handle, view_name);
+    View collection = View(db_handle, view_name);
 
     // Start at the beginning of the view
     COLLECTIONPOSITION coll_pos;

@@ -2,7 +2,7 @@
 
 #include <domino/nsfsearc.h>
 
-#include "error.hpp"
+#include "../utils/error.hpp"
 
 Formula::Formula(std::string formula_str) {
   WORD t = NULL;
@@ -68,8 +68,6 @@ auto Formula::evaluate(NOTEHANDLE note_handle) -> std::string {
     if (data_type == TYPE_TEXT_LIST) {
       return readTextList(result_obj, result_len);
     }
-
-    result_obj->unlock_and_free();
   }
 
   NSFComputeStop(compute_handle);

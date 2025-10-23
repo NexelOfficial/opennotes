@@ -1,14 +1,14 @@
-#include "nif_collection.hpp"
+#include "view.hpp"
 
 #include <minwindef.h>
 
 #include <vector>
 
-#include "../log.hpp"
-#include "error.hpp"
+#include "../utils/log.hpp"
+#include "../utils/error.hpp"
 #include "os.hpp"
 
-NIFCollection::NIFCollection(DHANDLE db_handle, std::string view_name) {
+View::View(DHANDLE db_handle, std::string view_name) {
   NOTEID view_note_id = 0;
   STATUS err = NIFFindView(db_handle, view_name.c_str(), &view_note_id);
   if (err != NOERROR) {
@@ -22,7 +22,7 @@ NIFCollection::NIFCollection(DHANDLE db_handle, std::string view_name) {
   }
 }
 
-NIFCollection::~NIFCollection() {
+View::~View() {
   if (this->handle == NULLHANDLE) {
     return;
   }
@@ -33,7 +33,7 @@ NIFCollection::~NIFCollection() {
   }
 }
 
-auto NIFCollection::read_entries(COLLECTIONPOSITION *pos, DWORD return_count,
+auto View::read_entries(COLLECTIONPOSITION *pos, DWORD return_count,
                                  DWORD read_mask) const -> std::vector<NIFEntry> {
   DHANDLE entries_handle = NULLHANDLE;
   DWORD entries_length = NULL;
@@ -95,6 +95,5 @@ auto NIFCollection::read_entries(COLLECTIONPOSITION *pos, DWORD return_count,
     }
   }
 
-  entries_obj->unlock_and_free();
   return entries;
 }

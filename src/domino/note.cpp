@@ -3,8 +3,8 @@
 #include <string>
 #include <domino/nsfnote.h>
 
-#include "error.hpp"
-#include "../log.hpp"
+#include "../utils/error.hpp"
+#include "../utils/log.hpp"
 
 Note::Note(DHANDLE db_handle, NOTEID note_id) {
   STATUS err = NSFNoteOpenExt(db_handle, note_id, OPEN_NOOBJECTS, &this->handle);

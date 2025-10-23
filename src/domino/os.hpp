@@ -6,6 +6,7 @@ class OSObject {
  public:
   OSObject(DHANDLE handle)
       : object_ptr(reinterpret_cast<char*>(OSLockObject(handle))), handle(handle) {}
+  ~OSObject() { this->unlock_and_free(); }
 
   template <typename T>
   [[nodiscard]] auto get() -> T {

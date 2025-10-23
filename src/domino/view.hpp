@@ -15,10 +15,10 @@ struct NIFEntry {
   std::vector<NIFColumn> columns{};
 };
 
-class NIFCollection {
+class View {
  public:
-  NIFCollection(DHANDLE db_handle, std::string view_name);
-  ~NIFCollection();
+  View(DHANDLE db_handle, std::string view_name);
+  ~View();
 
   [[nodiscard]] auto is_valid() const -> bool { return this->handle != NULLHANDLE; }
   [[nodiscard]] auto get_handle() const -> HCOLLECTION { return this->handle; }
