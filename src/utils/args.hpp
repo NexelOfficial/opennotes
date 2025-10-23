@@ -1,12 +1,23 @@
 #pragma once
 
 #include <exception>
+#include <format>
 #include <map>
 #include <string>
 #include <vector>
 
 class Args {
  public:
+  [[nodiscard]] auto static get_usage(const std::string& command,
+                                      const std::vector<std::string>& args) -> std::string {
+    std::string args_str = "";
+    for (std::string arg : args) {
+      args_str += std::format("--{} <{}> ", arg, arg);
+    }
+
+    return std::format("onotes {} {}", command, args_str);
+  }
+
   Args(std::vector<char*> raw_args);
   [[nodiscard]] auto get(const std::string& key) const -> std::string {
     return this->has(key) ? arguments.at(key) : "";

@@ -7,22 +7,23 @@
 #include <windows.h>
 #include <winerror.h>
 
-#include <cstdlib>
 #include <format>
 #include <iostream>
 #include <string>
 #include <vector>
 
-#include "utils/args.hpp"
-#include "utils/log.hpp"
-#include "utils/error.hpp"
-#include "utils/parser.hpp"
 #include "domino/database.hpp"
 #include "domino/formula.hpp"
 #include "domino/note.hpp"
 #include "domino/view.hpp"
+#include "utils/args.hpp"
+#include "utils/error.hpp"
+#include "utils/log.hpp"
+#include "utils/parser.hpp"
+#include "utils/config.hpp"
 
 Args *args = nullptr;
+Config *config = nullptr;
 
 STATUS LNCALLBACK xmlWriter(const char *pBuffer, DWORD_PTR dwBytesWritten, void *pAction) {
   auto *buffer = static_cast<std::string *>(pAction);
@@ -85,6 +86,31 @@ auto getDocsInView(DHANDLE db_handle, std::string view_name) -> std::vector<NOTE
 
 auto main(int argc, char *argv[]) -> int {
   args = new Args(std::vector<char *>(argv, argv + argc));
+  config = new Config();
+
+  // Set the open database
+  if (args->get(1) == "use") {
+    std::string db_port = args->get("port");
+    std::string db_server = args->get("server");
+    std::string db_file = args->get("file");
+
+    if (db_server.empty() || db_file.empty()) {
+      std::string use_usage = Args::get_usage("use", {"port", "server", "file"});
+      std::cout << std::format("Invalid usage. Usage:\n{}\n", use_usage);
+      return 0;
+    }
+
+    config->set_active_database(db_port, db_server, db_file);
+    config->save();
+    return 0;
+  }
+
+  // Get port, server and file from config
+  if (!config->has_active_database()) {
+    std::string use_usage = Args::get_usage("use", {"port", "server", "file"});
+    std::cout << std::format("No database was opened. Open one using:\n{}\n", use_usage);
+    return 0;
+  }
 
   // Init
   STATUS err = NotesInitExtended(argc, argv);
@@ -92,22 +118,9 @@ auto main(int argc, char *argv[]) -> int {
     return Log::error(err, "NotesInitExtended error");
   }
 
-  // Get port, server and file from env
-  const char *db_port = std::getenv("DOMINO_PORT");
-  const char *db_server = std::getenv("DOMINO_SERVER");
-  const char *db_file = std::getenv("DOMINO_FILE");
-
-  if (db_port == nullptr) {
-    db_port = "";
-  }
-
-  if (db_server == nullptr || db_file == nullptr) {
-    Log::error("Required environment variables DOMINO_SERVER and DOMINO_FILE aren't set.\n");
-    return 0;
-  }
-
   // Open database
-  Database db = Database(db_port, db_server, db_file);
+  DatabaseInfo db_info = config->get_active_database();
+  Database db = Database(db_info.port, db_info.server, db_info.file);
 
   // Get design elements
   std::string view_name = args->get(1);
@@ -127,7 +140,8 @@ auto main(int argc, char *argv[]) -> int {
     if (note_ids.size() > 20) {
       std::cout << std::format(
           "Warning: You're evaluating Formula over a large amount of Note's ({}). Processing can "
-          "take significantly longer.", note_ids.size());
+          "take significantly longer.",
+          note_ids.size());
     }
 
     for (auto note_id : note_ids) {

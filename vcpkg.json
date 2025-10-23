@@ -1,0 +1,10 @@
+{
+  "name": "opennotes",
+  "version-string": "1.0",
+  "dependencies": [
+    {
+      "name": "nlohmann-json",
+      "platform": "x86"
+    }
+  ]
+}
