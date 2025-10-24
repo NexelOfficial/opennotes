@@ -14,7 +14,7 @@ class Formula {
 
  private:
   OSObject *formula_obj;
-  WORD formula_size = NULL;
+  USHORT formula_size = NULL;
 
   DHANDLE compute_handle = NULLHANDLE;
 

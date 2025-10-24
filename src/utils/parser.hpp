@@ -3,6 +3,7 @@
 #include <domino/nsfsearc.h>
 
 #include <array>
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -10,12 +11,14 @@
 
 class Parser {
  public:
+  const static USHORT MAX_ITEM_SIZE = 34816;
+
   auto static parse_timedate(std::vector<USHORT>& buffer) -> std::string {
     if (buffer.size() != sizeof(TIMEDATE)) return "";
 
     auto date = *reinterpret_cast<TIMEDATE*>(buffer.data());
     std::array<char, MAXALPHATIMEDATE> raw_text{};
-    WORD raw_text_len = NULL;
+    USHORT raw_text_len = NULL;
     ConvertTIMEDATEToText(nullptr, nullptr, &date, raw_text.data(), MAXALPHATIMEDATE,
                           &raw_text_len);
 
@@ -40,14 +43,18 @@ class Parser {
 
     // Get the amount of entries
     OSObject obj = OSObject(buffer);
-    WORD entries = obj.get<WORD>();
-    auto* lengths = obj.get_raw<const WORD*>();
+    auto entries = obj.get<USHORT>();
+    auto* lengths = obj.get_raw<const USHORT*>();
+
+    if (entries > buffer.size()) {
+      return std::string{};
+    }
 
     // Concatenate all entries
     std::string output = "";
     obj.mov((BYTE*)(entries + lengths));
     auto content = obj.get_raw<const char*>();
-    for (WORD i = 0; i < entries; i++) {
+    for (USHORT i = 0; i < entries; i++) {
       output += std::string(content, lengths[i]) + ",";
       content += lengths[i];
     }

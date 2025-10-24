@@ -7,13 +7,15 @@
 #include <windows.h>
 #include <winerror.h>
 
+#include <exception>
 #include <iostream>
 #include <string>
 #include <vector>
 
+#include "command_handler.hpp"
 #include "utils/args.hpp"
 #include "utils/config.hpp"
-#include "command_handler.hpp"
+
 
 auto main(int argc, char *argv[]) -> int {
   if (argc < 2) {
@@ -26,6 +28,10 @@ auto main(int argc, char *argv[]) -> int {
 
   // Set the open database
   std::string command = args->get(1);
-  auto handler = CommandRegistry::instance().get(command);
-  return handler(args, config);
+  try {
+    auto handler = CommandRegistry::instance().get(command);
+    return handler(args, config);
+  } catch (std::exception ex) {
+    std::cout << ex.what() << "\n";
+  }
 }

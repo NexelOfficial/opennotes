@@ -29,9 +29,12 @@ Now add your Notes directory to the PATH environment variable. It's recommended 
 After that, use the command to access items in views and run @formula's on them. Here are some example commands that can be used:
 
 ```shell
+# Start working in a database (port is optional)
+onotes use "<server>" "<file>" "<port>"
+
 # Get 10 items from the view, log the first column
-onotes "<view name>" --column 1 --count 10
+onotes view "<view name>" --column 1 --count 10
 
 # Run the formula for all items in the view
-onotes "<view name>" --formula '@Text(@DocumentUniqueId) + " | " + @Text(@Modified)'
+onotes view "<view name>" --formula '@Text(@DocumentUniqueId) + " | " + @Text(@Modified)'
 ```

@@ -91,7 +91,7 @@ static auto view_cmd(const Args *args, Config *config) -> STATUS {
 
   // Get port, server and file from config
   if (!config->has_active_database()) {
-    std::cout << std::format("No database is opened.");
+    std::cout << "No database is opened.\n";
     Args::log_usage("use <server> <file> [port]", {});
     return 0;
   }

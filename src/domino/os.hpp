@@ -20,7 +20,7 @@ class OSObject {
   }
 
   template <typename T>
-  [[nodiscard]] auto get(WORD len) -> std::vector<T> {
+  [[nodiscard]] auto get(USHORT len) -> std::vector<T> {
     std::vector<T> item_buffer(len);
     memcpy(item_buffer.data(), this->get_raw<T*>(), len);
     this->inc(len);
