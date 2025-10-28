@@ -3,7 +3,7 @@
 #include <domino/nsfsearc.h>
 
 #include <array>
-#include <iostream>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -44,19 +44,20 @@ class Parser {
     // Get the amount of entries
     OSObject obj = OSObject(buffer);
     auto entries = obj.get<USHORT>();
-    auto* lengths = obj.get_raw<const USHORT*>();
+    std::map<USHORT, USHORT> lengths{};
 
     if (entries > buffer.size()) {
       return std::string{};
     }
 
+    for (USHORT i = 0; i < entries; i++) {
+      lengths[i] = obj.get<USHORT>();
+    }
+
     // Concatenate all entries
     std::string output = "";
-    obj.mov((BYTE*)(entries + lengths));
-    auto content = obj.get_raw<const char*>();
     for (USHORT i = 0; i < entries; i++) {
-      output += std::string(content, lengths[i]) + ",";
-      content += lengths[i];
+      output += obj.get_string(lengths[i]) + ",";
     }
 
     return output.empty() ? "" : output.substr(0, output.size() - 1);

@@ -2,6 +2,7 @@
 #include <domino/global.h>
 #include <domino/osmem.h>
 
+#include <string>
 #include <vector>
 
 class OSObject {
@@ -25,6 +26,12 @@ class OSObject {
     memcpy(item_buffer.data(), this->get_raw<T*>(), len);
     this->inc(len);
     return item_buffer;
+  }
+
+  [[nodiscard]] auto get_string(USHORT len) -> std::string {
+    std::string result(reinterpret_cast<const char*>(object_ptr), len);
+    inc(len);
+    return result;
   }
 
   template <typename T>
