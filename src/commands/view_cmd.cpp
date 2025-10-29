@@ -93,7 +93,7 @@ static auto view_cmd(const Args *args, Config *config) -> STATUS {
   if (!config->has_active_database()) {
     std::cout << "No database is opened.\n";
     Args::log_usage("use <server> <file> [port]", {});
-    return 0;
+    return (STATUS)NOERROR;
   }
 
   // Get count and column
@@ -105,34 +105,66 @@ static auto view_cmd(const Args *args, Config *config) -> STATUS {
   const Database db = Database(db_info.port, db_info.server, db_info.file);
   const std::vector<NOTEID> note_ids = getDocsInView(db.get_handle(), view_name, count, column);
 
-  // Check for formula
-  if (args->has("formula")) {
-    Formula *formula = nullptr;
+  // Process note_ids in threads
+  std::vector<std::thread> threads;
+  std::mutex cout_mutex;
 
-    try {
-      formula = new Formula(args->get("formula"));
-    } catch (const NotesException &ex) {
-      Log::error(ex.what());
-      return 0;
+  auto ms_start = std::chrono::high_resolution_clock::now();
+  auto worker = [&](size_t thread_index) {
+    // Init
+    STATUS err = NotesInitExtended(0, nullptr);
+    if (err) {
+      return Log::error(err, "NotesInitExtended error");
     }
 
-    if (note_ids.size() > 20) {
-      std::cout << std::format(
-          "Warning: You're evaluating Formula over a large amount of Note's ({}). Processing can "
-          "take significantly longer.",
-          note_ids.size());
-    }
+    // Get database
+    const DatabaseInfo db_info = config->get_active_database();
+    const Database db = Database(db_info.port, db_info.server, db_info.file);
 
-    for (auto note_id : note_ids) {
+    // Check for formula
+    if (args->has("formula")) {
+      Formula *formula = nullptr;
+
       try {
-        const Note note = Note(db.get_handle(), note_id);
-        std::string output = formula->evaluate(note.get_handle());
-        std::cout << "- " << output << "\n";
+        formula = new Formula(args->get("formula"));
       } catch (const NotesException &ex) {
-        if (ex.get_code() != ERR_INVALID_NOTE) Log::error(ex.what());
+        Log::error(ex.what());
+        return (STATUS)NOERROR;
       }
-    }
+
+      size_t total = note_ids.size();
+      size_t chunk = (total + 8 - 1) / 8;
+
+      size_t start = thread_index * chunk;
+      size_t end = std::min(start + chunk, total);
+
+      for (size_t i = start; i < end; ++i) {
+        try {
+          const Note note = Note(db.get_handle(), note_ids[i]);
+          std::string output = formula->evaluate(note.get_handle());
+          std::lock_guard<std::mutex> lock(cout_mutex);
+          std::cout << "- " << output << "\n";
+        } catch (const NotesException &ex) {
+          if (ex.get_code() != ERR_INVALID_NOTE) {
+            std::lock_guard<std::mutex> lock(cout_mutex);
+            Log::error(ex.what());
+          }
+        }
+      }
+    };
+  };
+
+  for (size_t t = 0; t < 8; ++t) {
+    threads.emplace_back(worker, t);
   }
+
+  for (auto &th : threads) {
+    th.join();
+  }
+
+  auto ms_end = std::chrono::high_resolution_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(ms_end - ms_start).count();
+  std::cout << std::format("Formula evaluation completed in {} ms.\n", duration);
 
   return 0;
 }
