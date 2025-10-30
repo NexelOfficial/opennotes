@@ -2,7 +2,6 @@
 
 #include <minwindef.h>
 
-#include <iostream>
 #include <vector>
 
 #include "../utils/error.hpp"
@@ -34,17 +33,21 @@ View::~View() {
   }
 }
 
-auto View::read_entries(COLLECTIONPOSITION *pos, DWORD return_count,
-                        DWORD read_mask) const -> std::vector<NIFEntry> {
+auto View::get_entries(DWORD return_count) const -> std::vector<NIFEntry> {
   std::vector<NIFEntry> entries{};
+
+  // Start at the beginning of the view
+  COLLECTIONPOSITION coll_pos;
+  coll_pos.Level = 0;
+  coll_pos.Tumbler[0] = 0;
 
   WORD signal = SIGNAL_MORE_TO_DO;
   while (signal & SIGNAL_MORE_TO_DO) {
     DHANDLE entries_handle = NULLHANDLE;
     DWORD entries_length = NULL;
-    STATUS err =
-        NIFReadEntries(this->handle, pos, NAVIGATE_NEXT, 1, NAVIGATE_NEXT, return_count, read_mask,
-                       &entries_handle, nullptr, nullptr, &entries_length, &signal);
+    STATUS err = NIFReadEntries(this->handle, &coll_pos, NAVIGATE_NEXT, 1, NAVIGATE_NEXT,
+                                return_count, READ_MASK_NOTEID | READ_MASK_SUMMARYVALUES,
+                                &entries_handle, nullptr, nullptr, &entries_length, &signal);
 
     if (err != NOERROR) {
       throw NotesException(err, "NIFReadEntries error");

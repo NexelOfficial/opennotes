@@ -27,21 +27,12 @@ STATUS LNCALLBACK collectDesignNotes(void *ctxVoid, SEARCH_MATCH *match, ITEM_TA
   return NOERROR;
 };
 
-auto getDocsInView(DHANDLE db_handle, std::string view_name, int count,
-                   int column) -> std::vector<NOTEID> {
+auto getDocsInView(const View &collection, int count, int column) -> std::vector<NOTEID> {
   std::vector<NOTEID> note_ids{};
   std::vector<NIFEntry> entries{};
 
   try {
-    View collection = View(db_handle, view_name);
-
-    // Start at the beginning of the view
-    COLLECTIONPOSITION coll_pos;
-    coll_pos.Level = 0;
-    coll_pos.Tumbler[0] = 0;
-
-    // Read the entries at the current postion
-    entries = collection.read_entries(&coll_pos, count ? count : 0xFFFFFFFF);
+    entries = collection.get_entries(count ? count : 0xFFFFFFFF);
   } catch (NotesException ex) {
     Log::error(ex.what());
   }
@@ -148,7 +139,8 @@ static auto view_cmd(const Args *args, Config *config) -> STATUS {
   // Open database and get view docs
   const DatabaseInfo db_info = config->get_active_database();
   const Database db = Database(db_info.port, db_info.server, db_info.file);
-  const std::vector<NOTEID> note_ids = getDocsInView(db.get_handle(), view_name, count, column);
+  const View view = db.get_view(view_name);
+  const std::vector<NOTEID> note_ids = getDocsInView(view, count, column);
 
   if (!args->has("formula")) {
     return NOERROR;
@@ -157,7 +149,7 @@ static auto view_cmd(const Args *args, Config *config) -> STATUS {
   auto ms_start = std::chrono::high_resolution_clock::now();
 
   // Process note_ids in threads
-  int thread_count = (int)fmin(8, note_ids.size() / 20);
+  int thread_count = (int)fmin(8, fmax(1, note_ids.size() / 20));
   std::vector<std::future<std::vector<std::string>>> futures = {};
   futures.reserve(thread_count);
 

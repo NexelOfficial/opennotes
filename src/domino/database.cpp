@@ -23,10 +23,6 @@ Database::Database(std::string port, std::string server, std::string file) {
   }
 }
 
-// Database::Database(Database& other) {
-
-// }
-
 Database::~Database() {
   if (this->handle == NULLHANDLE) {
     return;

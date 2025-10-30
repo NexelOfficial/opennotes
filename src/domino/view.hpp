@@ -23,9 +23,7 @@ class View {
   [[nodiscard]] auto is_valid() const -> bool { return this->handle != NULLHANDLE; }
   [[nodiscard]] auto get_handle() const -> HCOLLECTION { return this->handle; }
 
-  [[nodiscard]] auto read_entries(
-      COLLECTIONPOSITION* pos, DWORD return_count = 0xFFFFFFFF,
-      DWORD read_mask = READ_MASK_NOTEID | READ_MASK_SUMMARYVALUES) const -> std::vector<NIFEntry>;
+  [[nodiscard]] auto get_entries(DWORD return_count = 0xFFFFFFFF) const -> std::vector<NIFEntry>;
 
  private:
   HCOLLECTION handle = NULLHANDLE;
