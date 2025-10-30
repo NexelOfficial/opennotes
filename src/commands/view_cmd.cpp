@@ -2,7 +2,9 @@
 #include <domino/nsferr.h>
 
 #include <format>
+#include <future>
 #include <iostream>
+#include <sstream>
 
 #include "../command_handler.hpp"
 #include "../domino/database.hpp"
@@ -51,28 +53,71 @@ auto getDocsInView(DHANDLE db_handle, std::string view_name, int count,
 
   for (NIFEntry entry : entries) {
     int final_index = (int)fmin(entry.columns.size() - 1, column);
-    NIFColumn col = entry.columns[final_index];
 
-    // Read the item
-    std::string item_text = "";
-    if (col.type == TYPE_TEXT && col.buffer.size() > 0) {
-      item_text = Parser::parse_text(col.buffer);
-    } else if (col.type == TYPE_TIME) {
-      item_text = Parser::parse_timedate(col.buffer);
-    } else if (col.type == TYPE_NUMBER) {
-      double item_num = Parser::parse_number(col.buffer);
-      item_text = std::format("Number: {}", item_num);
-    } else if (col.type == TYPE_TEXT_LIST) {
-      item_text = Parser::parse_text_list(col.buffer);
-    } else {
-      item_text = std::format("Type: {}", col.type);
+    if (entry.columns.size() > 0 && column != -1) {
+      NIFColumn col = entry.columns[final_index];
+
+      // Read the item
+      std::string item_text = "";
+      if (col.type == TYPE_TEXT && col.buffer.size() > 0) {
+        item_text = Parser::parse_text(col.buffer);
+      } else if (col.type == TYPE_TIME) {
+        item_text = Parser::parse_timedate(col.buffer);
+      } else if (col.type == TYPE_NUMBER) {
+        double item_num = Parser::parse_number(col.buffer);
+        item_text = std::format("Number: {}", item_num);
+      } else if (col.type == TYPE_TEXT_LIST) {
+        item_text = Parser::parse_text_list(col.buffer);
+      } else {
+        item_text = std::format("Type: {}", col.type);
+      }
+
+      std::cout << entry.id << " | " << item_text << "\n";
     }
 
-    std::cout << entry.id << " | " << item_text << "\n";
     note_ids.push_back(entry.id);
   }
 
   return note_ids;
+}
+
+static auto view_thread(DatabaseInfo db_info, std::string formula_str,
+                        std::vector<NOTEID> tasks) -> std::vector<std::string> {
+  std::vector<std::string> results = {};
+
+  STATUS err = NotesInitExtended(0, nullptr);
+  if (err) {
+    return results;
+  }
+
+  const Database db = Database(db_info.port, db_info.server, db_info.file);
+  Formula *formula = nullptr;
+
+  try {
+    formula = new Formula(formula_str);
+  } catch (const NotesException &ex) {
+    Log::error(ex.what());
+    return results;
+  }
+
+  for (NOTEID task : tasks) {
+    try {
+      const Note note = Note(db.get_handle(), task);
+      std::string output = formula->evaluate(note.get_handle());
+
+      if (output != "") {
+        std::stringstream ss = {};
+        ss << std::setw(8) << std::setfill('0') << std::hex << task;
+        results.push_back("[0x" + ss.str() + "] " + output);
+      }
+    } catch (const NotesException &ex) {
+      if (ex.get_code() != ERR_INVALID_NOTE) {
+        Log::error(ex.what());
+      }
+    }
+  };
+
+  return results;
 }
 
 static auto view_cmd(const Args *args, Config *config) -> STATUS {
@@ -83,12 +128,6 @@ static auto view_cmd(const Args *args, Config *config) -> STATUS {
     return 0;
   }
 
-  // Init
-  STATUS err = NotesInitExtended(0, nullptr);
-  if (err) {
-    return Log::error(err, "NotesInitExtended error");
-  }
-
   // Get port, server and file from config
   if (!config->has_active_database()) {
     std::cout << "No database is opened.\n";
@@ -96,71 +135,54 @@ static auto view_cmd(const Args *args, Config *config) -> STATUS {
     return (STATUS)NOERROR;
   }
 
+  // Init
+  STATUS err = NotesInitExtended(0, nullptr);
+  if (err) {
+    return Log::error(err, "NotesInitExtended error");
+  }
+
   // Get count and column
   int count = args->get_int("count");
-  int column = args->get_int("column");
+  int column = args->has("column") ? args->get_int("column") : -1;
 
   // Open database and get view docs
   const DatabaseInfo db_info = config->get_active_database();
   const Database db = Database(db_info.port, db_info.server, db_info.file);
   const std::vector<NOTEID> note_ids = getDocsInView(db.get_handle(), view_name, count, column);
 
-  // Process note_ids in threads
-  std::vector<std::thread> threads;
-  std::mutex cout_mutex;
+  if (!args->has("formula")) {
+    return NOERROR;
+  }
 
   auto ms_start = std::chrono::high_resolution_clock::now();
-  auto worker = [&](size_t thread_index) {
-    // Init
-    STATUS err = NotesInitExtended(0, nullptr);
-    if (err) {
-      return Log::error(err, "NotesInitExtended error");
+
+  // Process note_ids in threads
+  int thread_count = (int)fmin(8, note_ids.size() / 20);
+  std::vector<std::future<std::vector<std::string>>> futures = {};
+  futures.reserve(thread_count);
+
+  for (int thread_index = 0; thread_index < thread_count; thread_index++) {
+    size_t total = note_ids.size();
+    size_t chunk = (total + thread_count - 1) / thread_count;
+
+    size_t start = thread_index * chunk;
+    size_t end = std::min(start + chunk, total);
+    std::string formula_str = args->get("formula");
+    std::vector<NOTEID> tasks(note_ids.begin() + start, note_ids.begin() + end);
+
+    futures.emplace_back(std::async(std::launch::async, view_thread, db_info, formula_str, tasks));
+  }
+
+  size_t printed_items = 0;
+  for (auto &f : futures) {
+    std::vector<std::string> items = f.get();
+    printed_items += items.size();
+    for (std::string val : items) {
+      std::cout << val << "\n";
     }
-
-    // Get database
-    const DatabaseInfo db_info = config->get_active_database();
-    const Database db = Database(db_info.port, db_info.server, db_info.file);
-
-    // Check for formula
-    if (args->has("formula")) {
-      Formula *formula = nullptr;
-
-      try {
-        formula = new Formula(args->get("formula"));
-      } catch (const NotesException &ex) {
-        Log::error(ex.what());
-        return (STATUS)NOERROR;
-      }
-
-      size_t total = note_ids.size();
-      size_t chunk = (total + 8 - 1) / 8;
-
-      size_t start = thread_index * chunk;
-      size_t end = std::min(start + chunk, total);
-
-      for (size_t i = start; i < end; ++i) {
-        try {
-          const Note note = Note(db.get_handle(), note_ids[i]);
-          std::string output = formula->evaluate(note.get_handle());
-          std::lock_guard<std::mutex> lock(cout_mutex);
-          std::cout << "- " << output << "\n";
-        } catch (const NotesException &ex) {
-          if (ex.get_code() != ERR_INVALID_NOTE) {
-            std::lock_guard<std::mutex> lock(cout_mutex);
-            Log::error(ex.what());
-          }
-        }
-      }
-    };
-  };
-
-  for (size_t t = 0; t < 8; ++t) {
-    threads.emplace_back(worker, t);
   }
 
-  for (auto &th : threads) {
-    th.join();
-  }
+  std::cout << "(" << (note_ids.size() - printed_items) << " items didn't return anything)\n";
 
   auto ms_end = std::chrono::high_resolution_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(ms_end - ms_start).count();

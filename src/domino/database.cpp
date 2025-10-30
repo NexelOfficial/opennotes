@@ -6,8 +6,8 @@
 #include <array>
 #include <string>
 
-#include "../utils/log.hpp"
 #include "../utils/error.hpp"
+#include "../utils/log.hpp"
 
 Database::Database(std::string port, std::string server, std::string file) {
   std::array<char, MAXWORD> db_path{};
@@ -16,12 +16,16 @@ Database::Database(std::string port, std::string server, std::string file) {
   if (err) {
     throw NotesException(err, "OSPathNetConstruct error");
   }
-  
+
   err = NSFDbOpen(db_path.data(), &this->handle);
   if (err) {
     throw NotesException(err, "NSFDbOpen error");
   }
 }
+
+// Database::Database(Database& other) {
+
+// }
 
 Database::~Database() {
   if (this->handle == NULLHANDLE) {
