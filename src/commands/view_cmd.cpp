@@ -63,7 +63,7 @@ auto getDocsInView(const View &collection, int count, int column) -> std::vector
         item_text = std::format("Type: {}", col.type);
       }
 
-      std::cout << entry.id << " | " << item_text << "\n";
+      std::cout << "[" << Note::id_to_string(entry.id) << "] " << item_text << "\n";
     }
 
     note_ids.push_back(entry.id);
@@ -97,9 +97,7 @@ static auto view_thread(DatabaseInfo db_info, std::string formula_str,
       std::string output = formula->evaluate(note.get_handle());
 
       if (output != "") {
-        std::stringstream ss = {};
-        ss << std::setw(8) << std::setfill('0') << std::hex << task;
-        results.push_back("[0x" + ss.str() + "] " + output);
+        results.push_back("[" + Note::id_to_string(task) + "] " + output);
       }
     } catch (const NotesException &ex) {
       if (ex.get_code() != ERR_INVALID_NOTE) {

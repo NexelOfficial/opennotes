@@ -1,7 +1,11 @@
 #include "note.hpp"
 
-#include <string>
 #include <domino/nsfnote.h>
+
+#include <iomanip>
+#include <iostream>
+#include <sstream>
+#include <string>
 
 #include "../utils/error.hpp"
 #include "../utils/log.hpp"
@@ -22,4 +26,10 @@ Note::~Note() {
   if (err != NOERROR) {
     Log::error(err, "NSFNoteClose error");
   }
+}
+
+auto Note::id_to_string(NOTEID note_id) -> std::string {
+  std::stringstream ss = {};
+  ss << std::setw(8) << std::setfill('0') << std::hex << note_id;
+  return "0x" + ss.str();
 }
