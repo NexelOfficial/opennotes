@@ -15,6 +15,7 @@
 #include "command_handler.hpp"
 #include "utils/args.hpp"
 #include "utils/config.hpp"
+#include "utils/log.hpp"
 
 
 auto main(int argc, char *argv[]) -> int {
@@ -23,15 +24,23 @@ auto main(int argc, char *argv[]) -> int {
     return 0;
   }
 
-  auto args = new Args(std::vector<char *>(argv, argv + argc));
-  auto config = new Config();
+  auto args = Args(std::vector<char *>(argv, argv + argc));
+  auto config = Config();
 
-  // Set the open database
-  std::string command = args->get(1);
+  // Init
+  STATUS err = NotesInitExtended(0, nullptr);
+  if (err) {
+    return Log::error(err, "NotesInitExtended error");
+  }
+
+  std::string command = args.get(1);
   try {
     auto handler = CommandRegistry::instance().get(command);
-    return handler(args, config);
+    return handler(&args, &config);
   } catch (std::exception ex) {
     std::cout << ex.what() << "\n";
   }
+
+  // Finish
+  NotesTerm();
 }

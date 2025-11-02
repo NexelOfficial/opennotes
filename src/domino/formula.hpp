@@ -1,14 +1,18 @@
 #pragma once
-#include <string>
-
 #include <domino/global.h>
 
+#include <string>
+
 #include "os.hpp"
+
 
 class Formula {
  public:
   Formula(std::string formula_str);
-  ~Formula() { this->formula_obj->unlock_and_free(); }
+  ~Formula() {
+    this->formula_obj->unlock_and_free();
+    delete formula_obj;
+  }
 
   [[nodiscard]] auto evaluate(DHANDLE note_handle) -> std::string;
 

@@ -1,6 +1,7 @@
 #pragma once
 #include <domino/global.h>
 
+#include <optional>
 #include <string>
 
 #include "view.hpp"
@@ -8,7 +9,7 @@
 class Database {
  public:
   Database(std::string server, std::string file) : Database(std::string{}, server, file) {}
-  Database(std::string port, std::string server, std::string file);
+  Database(std::string server, std::string file, std::optional<std::string> port);
   Database(Database& other) = delete;
   ~Database();
 

@@ -4,7 +4,6 @@
 #include <format>
 #include <future>
 #include <iostream>
-#include <sstream>
 
 #include "../command_handler.hpp"
 #include "../domino/database.hpp"
@@ -106,6 +105,8 @@ static auto view_thread(DatabaseInfo db_info, std::string formula_str,
     }
   };
 
+  delete formula;
+
   return results;
 }
 
@@ -122,12 +123,6 @@ static auto view_cmd(const Args *args, Config *config) -> STATUS {
     std::cout << "No database is opened.\n";
     Args::log_usage("use <server> <file> [port]", {});
     return (STATUS)NOERROR;
-  }
-
-  // Init
-  STATUS err = NotesInitExtended(0, nullptr);
-  if (err) {
-    return Log::error(err, "NotesInitExtended error");
   }
 
   // Get count and column

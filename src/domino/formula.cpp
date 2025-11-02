@@ -40,12 +40,12 @@ auto Formula::evaluate(NOTEHANDLE note_handle) -> std::string {
 
   // Process the result
   if (result != NULLHANDLE) {
-    auto result_obj = new OSObject(result);
-    auto data_type = result_obj->get<USHORT>();
+    auto result_obj = OSObject(result);
+    auto data_type = result_obj.get<USHORT>();
 
     // Read (if text list)
     if (data_type == TYPE_TEXT_LIST) {
-      auto item_buffer = result_obj->get<USHORT>(result_len);
+      auto item_buffer = result_obj.get<USHORT>(result_len);
       return Parser::parse_text_list(item_buffer);
     }
   }

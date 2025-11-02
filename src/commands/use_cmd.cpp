@@ -1,6 +1,8 @@
 #include <iostream>
 
 #include "../command_handler.hpp"
+#include "../domino/database.hpp"
+#include "../utils/error.hpp"
 
 static auto use_cmd(const Args* args, Config* config) -> STATUS {
   std::string db_server = args->get(2);
@@ -12,9 +14,15 @@ static auto use_cmd(const Args* args, Config* config) -> STATUS {
     return 0;
   }
 
-  config->set_active_database(db_port, db_server, db_file);
-  config->save();
-  std::cout << "Selected database: '" << db_file << "'\n";
+  try {
+    Database db = Database(db_server, db_file, db_port);
+    config->set_active_database(db_port, db_server, db_file);
+    config->save();
+    std::cout << "Selected database: '" << db_file << "'\n";
+  } catch (const NotesException& ex) {
+    std::cout << "Database doesn't exist, or couldn't open:\n" << ex.what() << "\n";
+  }
+
   return 0;
 }
 

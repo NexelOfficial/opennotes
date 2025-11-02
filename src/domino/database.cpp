@@ -4,15 +4,17 @@
 #include <domino/osfile.h>
 
 #include <array>
+#include <iostream>
 #include <string>
 
 #include "../utils/error.hpp"
 #include "../utils/log.hpp"
 
-Database::Database(std::string port, std::string server, std::string file) {
+Database::Database(std::string server, std::string file, std::optional<std::string> port) {
   std::array<char, MAXWORD> db_path{};
-  STATUS err = OSPathNetConstruct(port.empty() ? nullptr : port.data(), server.data(), file.data(),
+  STATUS err = OSPathNetConstruct(port.has_value() ? port->data() : "", server.data(), file.data(),
                                   db_path.data());
+
   if (err) {
     throw NotesException(err, "OSPathNetConstruct error");
   }
