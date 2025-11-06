@@ -8,8 +8,6 @@
 #include "../command_handler.hpp"
 #include "../domino/database.hpp"
 #include "../domino/formula.hpp"
-#include "../domino/note.hpp"
-#include "../domino/view.hpp"
 #include "../utils/error.hpp"
 #include "../utils/log.hpp"
 #include "../utils/parser.hpp"
@@ -71,8 +69,8 @@ auto getDocsInView(const View& collection, int count, int column) -> std::vector
   return note_ids;
 }
 
-static auto view_thread(DatabaseInfo db_info, std::string formula_str, std::vector<NOTEID> tasks)
-    -> std::vector<std::string> {
+static auto view_thread(const DatabaseInfo& db_info, std::string formula_str,
+                        std::vector<NOTEID> tasks) -> std::vector<std::string> {
   std::vector<std::string> results = {};
 
   STATUS err = NotesInitThread();
@@ -80,42 +78,30 @@ static auto view_thread(DatabaseInfo db_info, std::string formula_str, std::vect
     return results;
   }
 
-  std::cout << "Got in the thread\n";
-
-  const Database db = Database(db_info.port, db_info.server, db_info.file);
-  Formula* formula = nullptr;
-
   try {
-    formula = new Formula(formula_str);
-  } catch (const NotesException& ex) {
-    Log::error(ex.what());
-    return results;
-  }
+    const Database db = Database(db_info.server, db_info.file, db_info.port);
+    Formula formula = Formula(formula_str);
 
-  for (NOTEID task : tasks) {
-    try {
-      const Note note = Note(db.get_handle(), task);
-      std::string output = formula->evaluate(note.get_handle());
+    for (NOTEID task : tasks) {
+      const Note note = db.get_note(task);
+      std::string output = formula.evaluate(note.get_handle());
 
       if (output != "") {
         results.push_back("[" + Note::id_to_string(task) + "] " + output);
       }
-    } catch (const NotesException& ex) {
-      if (ex.get_code() != ERR_INVALID_NOTE) {
-        Log::error(ex.what());
-      }
+    };
+  } catch (const NotesException& ex) {
+    if (ex.get_code() != ERR_INVALID_NOTE) {
+      Log::error(ex.what());
     }
-  };
+  }
 
   NotesTermThread();
-
-  delete formula;
   return results;
 }
 
 static auto view_cmd(const Args* args, Config* config) -> STATUS {
   std::string view_name = args->get(2);
-
   if (view_name.empty()) {
     Args::log_usage("view <name>", {"formula", "count", "column"});
     return 0;
@@ -153,7 +139,6 @@ static auto view_cmd(const Args* args, Config* config) -> STATUS {
   // Process note_ids in threads
   int thread_count = (int)fmin(8, fmax(1, note_ids.size() / 20));
   std::vector<std::future<std::vector<std::string>>> futures = {};
-  futures.reserve(thread_count);
 
   for (int thread_index = 0; thread_index < thread_count; thread_index++) {
     size_t total = note_ids.size();
@@ -164,14 +149,15 @@ static auto view_cmd(const Args* args, Config* config) -> STATUS {
     std::string formula_str = args->get("formula");
     std::vector<NOTEID> tasks(note_ids.begin() + start, note_ids.begin() + end);
 
-    futures.emplace_back(std::async(std::launch::async, view_thread, db_info, formula_str, tasks));
+    futures.push_back(std::async(std::launch::async, view_thread, db_info, formula_str, tasks));
   }
 
   size_t printed_items = 0;
   for (auto& f : futures) {
     std::vector<std::string> items = f.get();
     printed_items += items.size();
-    for (std::string val : items) {
+
+    for (const std::string& val : items) {
       std::cout << val << "\n";
     }
   }

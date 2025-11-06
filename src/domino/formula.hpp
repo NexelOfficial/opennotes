@@ -5,14 +5,10 @@
 
 #include "os.hpp"
 
-
 class Formula {
  public:
   Formula(std::string formula_str);
-  ~Formula() {
-    this->formula_obj->unlock_and_free();
-    delete formula_obj;
-  }
+  ~Formula() { delete formula_obj; }
 
   [[nodiscard]] auto evaluate(DHANDLE note_handle) -> std::string;
 

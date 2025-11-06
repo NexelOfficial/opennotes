@@ -4,7 +4,6 @@
 #include <domino/osfile.h>
 
 #include <array>
-#include <iostream>
 #include <string>
 
 #include "../utils/error.hpp"
