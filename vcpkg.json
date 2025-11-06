@@ -5,6 +5,10 @@
     {
       "name": "nlohmann-json",
       "platform": "x86"
+    },
+    {
+      "name": "ixwebsocket",
+      "platform": "x86"
     }
   ]
 }

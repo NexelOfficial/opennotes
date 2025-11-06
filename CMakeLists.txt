@@ -29,5 +29,4 @@ target_include_directories(OPENNOTES PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(OPENNOTES PRIVATE ${VCPKG_INCLUDE})
 target_include_directories(OPENNOTES PRIVATE ${LIBS_INCLUDE})
 
-target_link_libraries(OPENNOTES ${VCPKG_LIB}/*.lib)
-target_link_libraries(OPENNOTES ${LIBS_LIB}/*.lib)
+target_link_libraries(OPENNOTES ${VCPKG_LIB}/*.lib ${LIBS_LIB}/*.lib crypt32 bcrypt)
