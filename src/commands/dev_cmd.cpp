@@ -1,4 +1,5 @@
 #include <domino/global.h>
+#include <domino/idtable.h>
 #include <domino/nsfdb.h>
 #include <domino/nsferr.h>
 #include <domino/ostime.h>
@@ -10,6 +11,7 @@
 #include <iostream>
 #include <termcolor/termcolor.hpp>
 #include <thread>
+#include <vector>
 
 #include "../command_handler.hpp"
 #include "../domino/database.hpp"
@@ -51,19 +53,44 @@ static auto dev_cmd(const Args* args, Config* config) -> STATUS {
     std::cout << termcolor::bright_green << "Development server running" << termcolor::reset
               << ":\n> IP: " << termcolor::bright_blue << "http://127.0.0.1:40456/\n\n";
 
-    TIMEDATE previous_modified = {};
-    while (true) {
-      TIMEDATE now = {};
-      OSCurrentTIMEDATE(&now);
+    std::map<NOTEID, int> old_changes = {};
 
-      TIMEDATE last_modified = {};
-      NSFDbModifiedTime(db.get_handle(), nullptr, &last_modified);
-      bool is_same = (last_modified.Innards[0] == previous_modified.Innards[0]) &&
-                     (last_modified.Innards[1] == previous_modified.Innards[1]);
+    int tick = 0;
+    while (++tick) {
+      TIMEDATE since = {};
+      TIMEDATE until = {};
+      OSCurrentTIMEDATE(&since);
+      TimeDateAdjust(&since, -2, 0, 0, 0, 0, 0);
 
-      if (!is_same) {
-        previous_modified = last_modified;
+      DHANDLE output_table = NULLHANDLE;
+      NSFDbGetModifiedNoteTable(db.get_handle(), NOTE_CLASS_ALL, since, &until, &output_table);
 
+      // Add new changes
+      const DWORD num_entries = IDEntries(output_table);
+      std::vector<NOTEID> new_changes = {};
+      if (num_entries) {
+        DWORD num_scanned = 0;
+        NOTEID note_id = NULLHANDLE;
+
+        while (IDScan(output_table, num_scanned++ == 0, &note_id)) {
+          if (!old_changes.contains(note_id)) {
+            old_changes[note_id] = tick;
+            new_changes.push_back(note_id);
+          }
+        }
+      }
+
+      IDDestroyTable(output_table);
+
+      // Remove the old ones
+      for (auto& pair : old_changes) {
+        if (tick - pair.second > 6) {
+          old_changes.erase(pair.first);
+        }
+      }
+
+      // Check for new changes
+      if (new_changes.size() > 0) {
         for (auto it = clients.begin(); it != clients.end();) {
           if (it->expired()) {
             it = clients.erase(it);
@@ -73,8 +100,9 @@ static auto dev_cmd(const Args* args, Config* config) -> STATUS {
           }
         }
 
-        std::cout << termcolor::grey << "[change]" << termcolor::bright_blue << " Emitted to "
-                  << clients.size() << " client(s)\n";
+        std::cout << termcolor::grey << "[" << Note::id_to_string(new_changes[0]) << "]"
+                  << termcolor::bright_blue << " Emitted to " << clients.size() << " client(s)\n"
+                  << termcolor::reset;
       }
 
       std::this_thread::sleep_for(std::chrono::milliseconds(200));
