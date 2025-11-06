@@ -1,6 +1,5 @@
 #include "log.hpp"
 
-#include <iostream>
 #include <string>
 
 auto Log::error(STATUS code, std::string prefix) -> STATUS {
@@ -12,8 +11,6 @@ auto Log::error(STATUS code, std::string prefix) -> STATUS {
     err_buffer += std::to_string(code);
   }
 
-  std::cout << prefix << ": " << err_buffer.data() << "\n";
+  error(prefix + ": " + err_buffer.data());
   return code;
 }
-
-void Log::error(std::string message) { std::cout << message << "\n"; }

@@ -1,17 +1,15 @@
 #include <domino/global.h>
 #include <domino/idtable.h>
 #include <domino/nsfdb.h>
-#include <domino/nsferr.h>
 #include <domino/ostime.h>
 #include <ixwebsocket/IXWebSocketServer.h>
-#include <wincrypt.h>
-#include <winsock.h>
 
 #include <chrono>
+#include <csignal>
 #include <iostream>
+#include <memory>
 #include <nlohmann/json.hpp>
 #include <string>
-#include <termcolor/termcolor.hpp>
 #include <thread>
 #include <vector>
 
@@ -21,6 +19,14 @@
 #include "../utils/log.hpp"
 #include "ixwebsocket/IXWebSocket.h"
 
+using WSNoteProps = std::map<std::string, std::string>;
+
+const int WS_PORT = 40456;
+const std::string WS_IP = "127.0.0.1";
+bool should_exit = false;
+
+void signal_handler(int) { should_exit = true; }
+
 static auto dev_cmd(const Args* args, Config* config) -> STATUS {
   // Get port, server and file from config
   if (!config->has_active_database()) {
@@ -29,10 +35,11 @@ static auto dev_cmd(const Args* args, Config* config) -> STATUS {
     return (STATUS)NOERROR;
   }
 
+  int actual_port = args->has("port") ? args->get_int("port") : WS_PORT;
   std::vector<std::weak_ptr<ix::WebSocket>> clients = {};
 
   ix::initNetSystem();
-  ix::WebSocketServer server(40456, "127.0.0.1");
+  ix::WebSocketServer server(actual_port, WS_IP);
   server.setOnConnectionCallback(
       [&server, &clients](std::weak_ptr<ix::WebSocket> webSocket,
                           std::shared_ptr<ix::ConnectionState> connectionState) -> void {
@@ -47,13 +54,14 @@ static auto dev_cmd(const Args* args, Config* config) -> STATUS {
       });
 
   auto res = server.listenAndStart();
+  signal(SIGINT, signal_handler);
 
   try {
     const DatabaseInfo db_info = config->get_active_database();
     const Database db = Database(db_info.server, db_info.file, db_info.port);
 
-    std::cout << termcolor::bright_green << "Development server running" << termcolor::reset
-              << ":\n> IP: " << termcolor::bright_blue << "http://127.0.0.1:40456/\n\n";
+    Log::update("development server started");
+    Log::info("running on ", Log::blue, WS_IP, ":", actual_port);
 
     std::map<NOTEID, int> old_changes = {};
 
@@ -93,50 +101,65 @@ static auto dev_cmd(const Args* args, Config* config) -> STATUS {
 
       // Check for new changes
       if (new_changes.size() > 0) {
-        for (auto it = clients.begin(); it != clients.end();) {
-          if (it->expired()) {
-            it = clients.erase(it);
-          } else {
-            nlohmann::json j;
+        std::vector<WSNoteProps> outputs = {};
 
-            std::vector<std::string> forms;
-            for (const auto& note_id : new_changes) {
-              try {
-                const Note note = db.get_note(note_id);
+        for (const auto& note_id : new_changes) {
+          // Construct output
+          WSNoteProps props = {};
+          props["noteid"] = Note::id_to_string(note_id);
 
-                std::array<char, 256> field = {};
-                NSFItemConvertToText(note.get_handle(), "$TITLE", field.data(), field.size(), ';');
-                std::string outp = std::string(field.data(), strlen(field.data()));
-                forms.emplace_back(outp);
-              } catch (const NotesException&) {
-                forms.emplace_back("");
-              }
-            }
+          try {
+            const Note note = db.get_note(note_id);
 
-            j["event"] = "DB_UPDATE";
-            j["changes"] = forms;
-            it->lock()->send(j.dump(2));
-            ++it;
+            std::array<char, 256> field = {};
+            NSFItemConvertToText(note.get_handle(), "$TITLE", field.data(), field.size(), ';');
+            props["title"] = std::string(field.data(), strlen(field.data()));
+          } catch (const NotesException& ex) {
+            Log::error(ex.what());
           }
+
+          outputs.emplace_back(props);
         }
 
+        // Log output to console
         std::string all_changes;
-        for (size_t i = 0; i < new_changes.size(); ++i) {
+        for (size_t i = 0; i < outputs.size(); ++i) {
           size_t left = new_changes.size() - i;
-          if (i == 3 && left > 0) {
+          if (i == 2 && left > 0) {
             all_changes += std::to_string(left) + " more...";
             break;
           }
 
-          all_changes += Note::id_to_string(new_changes[i]);
+          all_changes += outputs[i]["noteid"];
+
+          std::string title = outputs[i]["title"];
+          if (!title.empty()) {
+            all_changes += std::format(" ({})", title.substr(0, title.find(";")));
+          }
+
           if (i != new_changes.size() - 1) {
             all_changes += ", ";
           }
         }
+        Log::update(all_changes);
 
-        std::cout << termcolor::grey << "[onotes]" << termcolor::bright_green << " update "
-                  << termcolor::reset << all_changes << " \n"
-                  << termcolor::reset;
+        nlohmann::json j;
+        j["event"] = "DB_UPDATE";
+        j["changes"] = outputs;
+
+        // Send output to client
+        for (auto it = clients.begin(); it != clients.end();) {
+          if (it->expired()) {
+            it = clients.erase(it);
+          } else {
+            it->lock()->send(j.dump(2));
+            ++it;
+          }
+        }
+      }
+
+      if (should_exit) {
+        break;
       }
 
       std::this_thread::sleep_for(std::chrono::milliseconds(200));
