@@ -9,6 +9,10 @@
     {
       "name": "ixwebsocket",
       "platform": "x86"
+    },
+    {
+      "name": "termcolor",
+      "platform": "x86"
     }
   ]
 }

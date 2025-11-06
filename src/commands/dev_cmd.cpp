@@ -8,6 +8,7 @@
 
 #include <chrono>
 #include <iostream>
+#include <termcolor/termcolor.hpp>
 #include <thread>
 
 #include "../command_handler.hpp"
@@ -46,10 +47,11 @@ static auto dev_cmd(const Args* args, Config* config) -> STATUS {
   try {
     const DatabaseInfo db_info = config->get_active_database();
     const Database db = Database(db_info.server, db_info.file, db_info.port);
+
+    std::cout << termcolor::bright_green << "Development server running" << termcolor::reset
+              << ":\n> IP: " << termcolor::bright_blue << "http://127.0.0.1:40456/\n\n";
+
     TIMEDATE previous_modified = {};
-
-    std::cout << "Development server running:\n> IP: http://127.0.0.1:40456/\n\n";
-
     while (true) {
       TIMEDATE now = {};
       OSCurrentTIMEDATE(&now);
@@ -61,7 +63,6 @@ static auto dev_cmd(const Args* args, Config* config) -> STATUS {
 
       if (!is_same) {
         previous_modified = last_modified;
-        std::cout << "Database change. Emitting to " << clients.size() << " client(s)...\n";
 
         for (auto it = clients.begin(); it != clients.end();) {
           if (it->expired()) {
@@ -71,6 +72,9 @@ static auto dev_cmd(const Args* args, Config* config) -> STATUS {
             ++it;
           }
         }
+
+        std::cout << termcolor::grey << "[change]" << termcolor::bright_blue << " Emitted to "
+                  << clients.size() << " client(s)\n";
       }
 
       std::this_thread::sleep_for(std::chrono::milliseconds(200));
