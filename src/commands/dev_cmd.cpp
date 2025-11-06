@@ -86,7 +86,7 @@ static auto dev_cmd(const Args* args, Config* config) -> STATUS {
 
       // Remove the old ones
       for (auto& pair : old_changes) {
-        if (tick - pair.second > 8) {
+        if (tick - pair.second > 10) {
           old_changes.erase(pair.first);
         }
       }
@@ -120,9 +120,22 @@ static auto dev_cmd(const Args* args, Config* config) -> STATUS {
           }
         }
 
-        std::string first_change = std::format("[{}]", Note::id_to_string(new_changes[0]));
-        std::cout << termcolor::grey << first_change << termcolor::bright_blue << " Emitted to "
-                  << clients.size() << " client(s)\n"
+        std::string all_changes;
+        for (size_t i = 0; i < new_changes.size(); ++i) {
+          size_t left = new_changes.size() - i;
+          if (i == 3 && left > 0) {
+            all_changes += std::to_string(left) + " more...";
+            break;
+          }
+
+          all_changes += Note::id_to_string(new_changes[i]);
+          if (i != new_changes.size() - 1) {
+            all_changes += ", ";
+          }
+        }
+
+        std::cout << termcolor::grey << "[onotes]" << termcolor::bright_green << " update "
+                  << termcolor::reset << all_changes << " \n"
                   << termcolor::reset;
       }
 
