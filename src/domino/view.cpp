@@ -8,7 +8,7 @@
 #include "../utils/log.hpp"
 #include "os.hpp"
 
-View::View(DHANDLE db_handle, std::string view_name) {
+View::View(DHANDLE db_handle, const std::string& view_name) {
   NOTEID view_note_id = 0;
   STATUS err = NIFFindView(db_handle, view_name.c_str(), &view_note_id);
   if (err != NOERROR) {

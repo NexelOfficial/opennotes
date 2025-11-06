@@ -14,19 +14,19 @@
 #include "../utils/log.hpp"
 #include "../utils/parser.hpp"
 
-STATUS LNCALLBACK xmlWriter(const char *pBuffer, DWORD_PTR dwBytesWritten, void *pAction) {
-  auto *buffer = static_cast<std::string *>(pAction);
+STATUS LNCALLBACK xmlWriter(const char* pBuffer, DWORD_PTR dwBytesWritten, void* pAction) {
+  auto* buffer = static_cast<std::string*>(pAction);
   buffer->append(pBuffer, dwBytesWritten);
   return NOERROR;
 }
 
-STATUS LNCALLBACK collectDesignNotes(void *ctxVoid, SEARCH_MATCH *match, ITEM_TABLE *table) {
-  auto *ctx = reinterpret_cast<std::vector<NOTEID> *>(ctxVoid);
+STATUS LNCALLBACK collectDesignNotes(void* ctxVoid, SEARCH_MATCH* match, ITEM_TABLE* table) {
+  auto* ctx = reinterpret_cast<std::vector<NOTEID>*>(ctxVoid);
   ctx->push_back(match->ID.NoteID);
   return NOERROR;
 };
 
-auto getDocsInView(const View &collection, int count, int column) -> std::vector<NOTEID> {
+auto getDocsInView(const View& collection, int count, int column) -> std::vector<NOTEID> {
   std::vector<NOTEID> note_ids{};
   std::vector<NIFEntry> entries{};
 
@@ -71,21 +71,23 @@ auto getDocsInView(const View &collection, int count, int column) -> std::vector
   return note_ids;
 }
 
-static auto view_thread(DatabaseInfo db_info, std::string formula_str,
-                        std::vector<NOTEID> tasks) -> std::vector<std::string> {
+static auto view_thread(DatabaseInfo db_info, std::string formula_str, std::vector<NOTEID> tasks)
+    -> std::vector<std::string> {
   std::vector<std::string> results = {};
 
-  STATUS err = NotesInitExtended(0, nullptr);
+  STATUS err = NotesInitThread();
   if (err) {
     return results;
   }
 
+  std::cout << "Got in the thread\n";
+
   const Database db = Database(db_info.port, db_info.server, db_info.file);
-  Formula *formula = nullptr;
+  Formula* formula = nullptr;
 
   try {
     formula = new Formula(formula_str);
-  } catch (const NotesException &ex) {
+  } catch (const NotesException& ex) {
     Log::error(ex.what());
     return results;
   }
@@ -98,19 +100,20 @@ static auto view_thread(DatabaseInfo db_info, std::string formula_str,
       if (output != "") {
         results.push_back("[" + Note::id_to_string(task) + "] " + output);
       }
-    } catch (const NotesException &ex) {
+    } catch (const NotesException& ex) {
       if (ex.get_code() != ERR_INVALID_NOTE) {
         Log::error(ex.what());
       }
     }
   };
 
-  delete formula;
+  NotesTermThread();
 
+  delete formula;
   return results;
 }
 
-static auto view_cmd(const Args *args, Config *config) -> STATUS {
+static auto view_cmd(const Args* args, Config* config) -> STATUS {
   std::string view_name = args->get(2);
 
   if (view_name.empty()) {
@@ -131,9 +134,15 @@ static auto view_cmd(const Args *args, Config *config) -> STATUS {
 
   // Open database and get view docs
   const DatabaseInfo db_info = config->get_active_database();
-  const Database db = Database(db_info.port, db_info.server, db_info.file);
-  const View view = db.get_view(view_name);
-  const std::vector<NOTEID> note_ids = getDocsInView(view, count, column);
+  std::vector<NOTEID> note_ids = {};
+
+  try {
+    const Database db = Database(db_info.server, db_info.file, db_info.port);
+    const View view = db.get_view(view_name);
+    note_ids = getDocsInView(view, count, column);
+  } catch (const NotesException& ex) {
+    Log::error(ex.what());
+  }
 
   if (!args->has("formula")) {
     return NOERROR;
@@ -159,7 +168,7 @@ static auto view_cmd(const Args *args, Config *config) -> STATUS {
   }
 
   size_t printed_items = 0;
-  for (auto &f : futures) {
+  for (auto& f : futures) {
     std::vector<std::string> items = f.get();
     printed_items += items.size();
     for (std::string val : items) {

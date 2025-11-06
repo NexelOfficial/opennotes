@@ -17,7 +17,7 @@ struct NIFEntry {
 
 class View {
  public:
-  View(DHANDLE db_handle, std::string view_name);
+  View(DHANDLE db_handle, const std::string& view_name);
   ~View();
 
   [[nodiscard]] auto is_valid() const -> bool { return this->handle != NULLHANDLE; }

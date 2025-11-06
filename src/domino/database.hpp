@@ -13,7 +13,9 @@ class Database {
   Database(Database& other) = delete;
   ~Database();
 
-  [[nodiscard]] auto get_view(std::string name) const -> View { return {this->handle, name}; }
+  [[nodiscard]] auto get_view(const std::string& name) const -> View {
+    return {this->handle, name};
+  }
 
   [[nodiscard]] auto is_valid() const -> bool { return this->handle != NULLHANDLE; }
   [[nodiscard]] auto get_handle() const -> DHANDLE { return this->handle; }

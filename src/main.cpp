@@ -17,14 +17,13 @@
 #include "utils/config.hpp"
 #include "utils/log.hpp"
 
-
-auto main(int argc, char *argv[]) -> int {
+auto main(int argc, char* argv[]) -> int {
   if (argc < 2) {
     std::cerr << "Usage: onotes <command> [args...]\nCommands: view, use";
     return 0;
   }
 
-  auto args = Args(std::vector<char *>(argv, argv + argc));
+  auto args = Args(std::vector<char*>(argv, argv + argc));
   auto config = Config();
 
   // Init
