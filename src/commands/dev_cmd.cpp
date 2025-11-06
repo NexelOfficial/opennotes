@@ -9,6 +9,8 @@
 
 #include <chrono>
 #include <iostream>
+#include <nlohmann/json.hpp>
+#include <string>
 #include <termcolor/termcolor.hpp>
 #include <thread>
 #include <vector>
@@ -84,7 +86,7 @@ static auto dev_cmd(const Args* args, Config* config) -> STATUS {
 
       // Remove the old ones
       for (auto& pair : old_changes) {
-        if (tick - pair.second > 6) {
+        if (tick - pair.second > 8) {
           old_changes.erase(pair.first);
         }
       }
@@ -95,13 +97,32 @@ static auto dev_cmd(const Args* args, Config* config) -> STATUS {
           if (it->expired()) {
             it = clients.erase(it);
           } else {
-            it->lock()->send("DB_UPDATE");
+            nlohmann::json j;
+
+            std::vector<std::string> forms;
+            for (const auto& note_id : new_changes) {
+              try {
+                const Note note = db.get_note(note_id);
+
+                std::array<char, 256> field = {};
+                NSFItemConvertToText(note.get_handle(), "$TITLE", field.data(), field.size(), ';');
+                std::string outp = std::string(field.data(), strlen(field.data()));
+                forms.emplace_back(outp);
+              } catch (const NotesException&) {
+                forms.emplace_back("");
+              }
+            }
+
+            j["event"] = "DB_UPDATE";
+            j["changes"] = forms;
+            it->lock()->send(j.dump(2));
             ++it;
           }
         }
 
-        std::cout << termcolor::grey << "[" << Note::id_to_string(new_changes[0]) << "]"
-                  << termcolor::bright_blue << " Emitted to " << clients.size() << " client(s)\n"
+        std::string first_change = std::format("[{}]", Note::id_to_string(new_changes[0]));
+        std::cout << termcolor::grey << first_change << termcolor::bright_blue << " Emitted to "
+                  << clients.size() << " client(s)\n"
                   << termcolor::reset;
       }
 
